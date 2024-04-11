@@ -1,35 +1,39 @@
-from models    import *
-from data      import *
-from args      import args
-from trainer   import ModelTrainer
-from evaluator import ModelEvaluator
+import torch
+import torch.optim  as optim
+from args           import args
+from data           import get_dataloaders
+from models         import get_model
+from ModelTrainer   import ModelTrainer
+from ModelEvaluator import ModelEvaluator
 
-Model = eval(args.model_name)
-model = Model(args.channels, args.num_classes)
-model = model.to(args.device)
-model_name = f'{model}-{args.dataset}'
+if __name__ == '__main__':
+    print(f'Load {args.dataset} dataset...')
+    train_loader, test_loader = get_dataloaders(args)
+    print(f'Dataset {args.dataset} loaded.')
 
-print('Load data...')
-train_loader, eval_loader, test_loader = get_dataloader(args)
-
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr=args.learning_rate,
-    betas=(args.beta1, args.beta2),
-    eps=args.epsilon,
-    weight_decay=args.weight_decay
-)
-
-evaluator = ModelEvaluator(model, criterion)
-
-if args.load_model:
-    print(f'Model {model_name} Loading...')
-    model.load_state_dict(torch.load(f'saved_models/{model_name}.bin'))
-else:
-    print(f'Model {model_name} Training...')
-    trainer = ModelTrainer(model, args, evaluator, criterion, optimizer)
-    trainer.train(train_loader, eval_loader)
-
-print(f'Model {model_name} Testing...')
-evaluator.test(test_loader)
+    if args.mode == 'train':
+        model, model_name = get_model(args.model, args)
+        optimizer = optim.Adam(
+            model.parameters(), 
+            lr=args.lr, 
+            weight_decay=args.weight_decay
+        )
+        scheduled = optim.lr_scheduler.OneCycleLR(
+            optimizer=optimizer, 
+            max_lr=args.lr, 
+            epochs=args.epochs, 
+            steps_per_epoch=len(train_loader)
+        )
+        print(f'Model {model_name} training...')
+        trainer = ModelTrainer(model, args, train_loader, test_loader, optimizer, scheduled)
+        trainer.optimize()
+    
+    elif args.mode == 'test':
+        for test_model in args.test_models:
+            model, model_name = get_model(test_model, args, from_pretrained=True)            
+            evaluator = ModelEvaluator(model)
+            print(f'Model {model_name} testing...')
+            evaluator.test(test_loader)
+    
+    else:
+        assert 0, f"Mode {args.mode} Invalid."

@@ -1,34 +1,33 @@
 import argparse
 import torch
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size',     type=int,   default=512,            help='Training batch size')
-    parser.add_argument('--learning_rate',  type=float, default=1e-3,           help='Learning Rate')
-    parser.add_argument('--beta1',          type=float, default=0.9,            help='Beta1 in Adam')
-    parser.add_argument('--beta2',          type=float, default=0.999,          help='Beta2 in Adam')
-    parser.add_argument('--epsilon',        type=float, default=1e-8,           help='Epsilon in Adam')
-    parser.add_argument('--weight_decay',   type=float, default=1e-4,           help='Weight Decay During Training')
-    parser.add_argument('--train_steps',    type=int,   default=10000,          help='The Total Number of Training Steps')
-    parser.add_argument('--eval_steps',     type=int,   default=100,            help='The Number of Steps Between Two Evaluations')
-    
-    parser.add_argument('--split_size',     type=float, default=0.1,            help='The Size to Split Training Set')
-    
-    parser.add_argument('--load_model',     action='store_true',                help='Whether Load Trained Model')
-    parser.add_argument('--do_plot',        action='store_true',                help='Whether Draw Loss / Accuracy Curves')
-    parser.add_argument('--plot_steps',     type=int,   default=10,             help='The Number of Steps Between Two Plots')
-    
-    '''
-        TODO
-            args.model_name
-            args.dataset
-            args.num_classes
-            args.train_dataset
-            args.test_dataset
-            ...
-    '''
-    args = parser.parse_args()
-    args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    return args
+parser = argparse.ArgumentParser()
+# Custom Arguments
+parser.add_argument('--seed',               type=int,   default=3407,               help='Random seed')
+parser.add_argument('--gpu_id',             type=str,   default='0',                help='The GPU ID')
+parser.add_argument('--mode',               type=str,   default='train',            help='Choose mode from "train", "test" and "distill"')
 
-args = get_args()
+# Dataset Argument
+parser.add_argument('--dataset',            type=str,   default='CIFAR100',         help='The dataset')
+
+# Training Argument
+parser.add_argument('--model',              type=str,   default='ResNet18',         help='The model name')
+parser.add_argument('--batch_size',         type=int,   default=512,                help='Training batch size')
+parser.add_argument('--epochs',             type=int,   default=30,                 help='The number of training epochs')
+parser.add_argument('--lr',                 type=float, default=0.01,               help='Learning rate')
+parser.add_argument('--weight_decay',       type=float, default=1e-4,               help='Weight decay rate')
+parser.add_argument('--momentum',           type=float, default=0.9,                help='Momentum in SGD')
+parser.add_argument('--no_saving',          action='store_true',                    help='Whether save model during training process')
+
+# Testing Argument
+parser.add_argument('--test_models',        type=str,   nargs='+',                  help='Models to be tested')
+
+# Ploting Arguments
+parser.add_argument('--plot_steps',         type=int,   default=10,                 help='The number of steps between two plots')
+parser.add_argument('--no_plot',            action='store_true',                    help='Training without drawing loss / accuracy curves')
+
+args = parser.parse_args()
+
+torch.manual_seed(args.seed)
+args.device = torch.device('cuda:' + args.gpu_id if torch.cuda.is_available() else 'cpu')
+args.num_classes = int(args.dataset[5:])    # CIFAR10: 10, CIFAR100: 100
